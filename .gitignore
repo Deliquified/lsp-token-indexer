@@ -1,0 +1,15 @@
+# node modules
+node_modules
+
+# metadata directories
+/LSP7Divisible/*
+/LSP7NonDivisible/*
+/LSP8NonDivisible/*
+/NoMetadata/*
+/Unsupported/*
+
+# lock
+package-lock.json
+
+# env
+.env
