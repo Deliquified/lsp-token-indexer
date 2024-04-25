@@ -1,13 +1,19 @@
 # node modules
 node_modules
 
-# metadata directories
-/LSP7Divisible/*
-/LSP7NonDivisible/*
-/LSP8NonDivisible/*
-/NoMetadata/*
-/Unsupported/*
+# Ignore everything in these directories
+LSP7Divisible/*
+LSP7NonDivisible/*
+LSP8NonDivisible/*
+Unsupported/*
+NoMetadata/*
 
+# But keep the directories themselves by excluding .gitkeep from being ignored
+!LSP7Divisible/.gitkeep
+!LSP7NonDivisible/.gitkeep
+!LSP8NonDivisible/.gitkeep
+!Unsupported/.gitkeep
+!NoMetadata/.gitkeep
 # lock
 package-lock.json
 

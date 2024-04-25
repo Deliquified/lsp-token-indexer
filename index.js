@@ -9,7 +9,7 @@ const fetch = require('node-fetch');
 
 dotenv.config();
 
-const LUKSO_RPC = `https://lukso.nownodes.io/${process.env.NOWWNODES_KEY}`;
+const LUKSO_RPC = `https://lukso.nownodes.io/${process.env.NOWNODES_KEY}`;
 
 const LSP6EventTopic = '0xa1fb700aaee2ae4a2ff6f91ce7eba292f89c2f5488b8ec4c5c5c8150692595c3';
 const LSP16EventTopic = '0x8872a323d65599f01bf90dc61c94b4e0cc8e2347d6af4122fccc3e112ee34a84';
