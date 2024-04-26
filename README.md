@@ -22,6 +22,12 @@ Resources: <br />
 
 [Prisma](https://www.prisma.io/)
 
+## Disclaimer
+
+This is a great resource for anyone new to Web3 development or blockchain in general. Whether you're a project building on Lukso and you need to display token metadata or you're learning about how to index blockchain events and extract on-chain/off-chain metadata - this indexer is for you. <br />
+
+We'll be improving the performance over time, adding new features, optimizing existing code, adding support for LSP23 etc. Other than that, if you're looking to iterate on the indexer and adjust it to your needs, feel free to do so.
+
 ## Getting Started
 
 ### Prerequisites
