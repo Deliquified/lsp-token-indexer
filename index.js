@@ -510,12 +510,63 @@ function readJsonFile(filePath) {
 }
 
 /******************************
+  Function to process contracts manually
+  This is useful for manually indexing EOA deployed LSP tokens
+******************************/
+
+// Upage & BurntPix NFTs were deployed via EOA
+// Indexer currently doesn't support EOA deployments
+const manualContractAddresses = ['0x39456Bcd4D450E55f851F97c30dF828A4e1f6C66', '0x3983151E0442906000DAb83c8b1cF3f2D2535F82'];
+
+async function processContractsManually(contractAddresses) {
+  console.log(`🔎 Starting to process manually provided contract addresses...`);
+
+  // Check if the provided addresses are either LSP7 or LSP8 contracts
+  const lspTokens = await isLSPTokenContract(contractAddresses);
+  console.log("EOA deployed LSP Tokens", lspTokens);
+
+  // For each LSP7 or LSP8 token, fetch metadata and determine the token standard and type, then save them
+  for (const contractAddress of lspTokens) {
+      console.log(`Processing contract: ${contractAddress}`);
+
+      try {
+          const metadata = await processTokenMetadata(contractAddress);
+
+          if (metadata) {
+              await determineTokenStandardAndType(metadata, contractAddress);
+          } else {
+              console.log(`No metadata found for ${contractAddress}`);
+
+              const directory = './NoMetadata';
+
+              // Ensure the directory exists
+              if (!fs.existsSync(directory)) {
+                  fs.mkdirSync(directory, { recursive: true });
+              }
+
+              const filePath = path.join(directory, `${contractAddress}.json`);
+              const dataToWrite = JSON.stringify({ message: "no metadata" }, null, 2);
+
+              fs.writeFileSync(filePath, dataToWrite, 'utf-8');
+              console.log(`Saved file for ${contractAddress} in ${directory} with message 'no metadata'.`);
+          }
+      } catch (error) {
+          console.error(`🚨 Error processing contract ${contractAddress}:`, error);
+      }
+  }
+
+  console.log("Finished processing manually provided contracts.");
+}
+
+/******************************
   UNCOMMENT THE APPROPRIATE FUNCTION
 
   MAIN() FOR INDEXING ALL TOKEN DEPLOYMENTS FROM BLOCK 0
   PROCESSALLDIRECTORIES FOR POPULATING EMPTY DATABASE WITH ALREADY INDEXED METADATA
 ******************************/
 
+// Run this to manually process EOA deployed contracts
+//processContractsManually(manualContractAddresses)
 
 // Run this in case you already indexed up to X block and want to re-populate the database
 //processAllDirectories();
