@@ -110,6 +110,8 @@ node index.js
  <br />
 This will start the process of indexing from block 0 to the latest block. The indexer will continuously listen for new blocks and index all the deployed LSP tokens. <br />
 
+Currently indexer doesn't support EOA contract deployment i.e. contracts deployed through EOA are not tracked & indexed. As a temporary work around we've added manual indexing via *processContractsManually()* function. We've added *BurntPix* and *Universal Page Name* contracts as default since they're both deployed via EOA.
+
 ## Technical Deep Dive
 
 The indexer is retrieving all transactions that have the Keymanager (LSP6) & Universal Factory (LSP16) topics:
