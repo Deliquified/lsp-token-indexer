@@ -28,9 +28,25 @@ async function main() {
     url: "https://lukso.hypersync.xyz"
   });
   
+  // Initialize or read existing logs
+  const contractsIndexedPath = path.join(__dirname, 'contractsIndexed.txt');
+  let contractsIndexed = [];
+  if (fs.existsSync(contractsIndexedPath)) {
+    contractsIndexed = fs.readFileSync(contractsIndexedPath, 'utf-8').split('\n').filter(Boolean);
+  }
+
+  const lastIndexedBlockPath = path.join(__dirname, 'lastIndexedBlock.txt');
+  let lastIndexedBlock = fs.existsSync(lastIndexedBlockPath) ? parseInt(fs.readFileSync(lastIndexedBlockPath, 'utf-8'), 10) : 0;
+
+  const lastIndexedContractPath = path.join(__dirname, 'lastIndexedContract.txt');
+  let lastIndexedContract = fs.existsSync(lastIndexedContractPath) ? fs.readFileSync(lastIndexedContractPath, 'utf-8') : '';
+
+  console.log(`Last Indexed Block: ${lastIndexedBlock}`);
+  console.log(`Last Indexed Contract: ${lastIndexedContract}`);
+  
   // Perform the query
   const query = {
-      "fromBlock": 0,
+      "fromBlock": lastIndexedBlock,
       "logs": [
         {
           "topics": [
@@ -59,12 +75,14 @@ async function main() {
       transactions: [{}]
   };
 
+
   while(true) {
     console.log(`🔍 Starting the query from block 0 to block latest...`);
     const response = await client.sendReq(query);
 
-    process.stdout.write(`QUERY ENDED ${response.nextBlock}\n`);
-  
+    console.log(`QUERY ENDED at block ${response.nextBlock - 1}`);
+    fs.writeFileSync(lastIndexedBlockPath, `${response.nextBlock}`, 'utf-8'); // Save the last indexed block
+
     // contractAddressBatch holds the transactions that have been found with the LSP6 & LSP16 topics
     const contractAddressBatch = response.data.logs;
 
@@ -104,16 +122,20 @@ async function main() {
       } catch (error) {
         console.error(`🚨 Error processing contract ${contractAddress}:`, error);
       }
+
+      contractsIndexed.push(contractAddress);
+      fs.writeFileSync(contractsIndexedPath, contractsIndexed.join('\n'), 'utf-8'); // Save the ongoing list of indexed contracts
+      fs.writeFileSync(lastIndexedContractPath, contractAddress, 'utf-8'); // Save the last indexed contract
     }
   
     console.log("Finished processing batch of contracts.");
 
     if (response.archiveHeight < response.nextBlock) {
       // wait if we are at the head
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 600000)); // Wait if we are at the head for 10 minutes
     }
 
-    query.fromBlock = response.nextBlock;
+    query.fromBlock = response.nextBlock; // Update the last indexed block for the next iteration
   }
 }
 
@@ -217,13 +239,13 @@ async function determineTokenStandardAndType(metadata, contractAddress) {
     tokenTypeResolved = 'Token';
     directory = `./LSP7Divisible/${contractAddress}`;
     // send metadata with tokentype to backend API
-    sendMetadataToAPI(metadata, "", "TOKEN")
+    sendMetadataToAPI(metadata, "", "TOKEN", "LSP7")
   } else if ((LSPStandard?.includes("LSP7") || type?.includes("LSP7DigitalAsset")) && (LSP4TokenType === "NFT" || TokenType === "NFT" || tokenType === "NFT")) {
     lspType = 'LSP7';
     tokenTypeResolved = 'NFT';
     directory = `./LSP7NonDivisible/${contractAddress}`;
     // send metadata with tokentype to backend API
-    sendMetadataToAPI(metadata, "", "NFT")
+    sendMetadataToAPI(metadata, "", "NFT", "LSP7")
   } else if ((LSPStandard?.includes("LSP8") || type?.includes("LSP8DigitalAsset") || LSPStandard === "LSP8IdentifiableDigitalAsset") && (LSP4TokenType === "NFT" || TokenType === "NFT" || tokenType === "NFT")) {
     lspType = 'LSP8';
     tokenTypeResolved = 'NFT';
@@ -242,7 +264,7 @@ async function determineTokenStandardAndType(metadata, contractAddress) {
       lspType = 'Unsupported';
       tokenTypeResolved = 'Unsupported';
       directory = `./Unsupported/${contractAddress}`;
-      sendMetadataToAPI(metadata, "", "Unknown")
+      sendMetadataToAPI(metadata, "", "Unknown", "Unknown")
       console.log(`Unsupported token type or standard. LSPStandard: ${LSPStandard}, TokenType: ${TokenType}, tokenType: ${tokenType}`);
   }
 
@@ -314,16 +336,15 @@ async function fetchNFTDirectory(CID, nftDirectory, metadata) {
     
     ensureDirectoryExists(nftDirectory)
 
-    // Save ID-CID pairs to a .txt file
-    const idCidContent = idCidPairs.map(pair => `ID: ${pair.id}, CID: ${pair.cid}`).join('\n');
-    fs.writeFileSync(path.join(nftDirectory, 'id-cid.txt'), idCidContent, 'utf8');
-    console.log(`Saved ID-CID pairs to ${path.join(nftDirectory, 'id-cid.txt')}`);
+    // Save ID-CID pairs to a JSON file
+    fs.writeFileSync(path.join(nftDirectory, 'id-cid.json'), JSON.stringify(idCidPairs), 'utf8');
+    console.log(`Saved ID-CID pairs to ${path.join(nftDirectory, 'id-cid.json')}`);
 
     // Once we've fetched tokenID > CDI metadata and token metadata, we send it to backend for processing
     try {
-      await sendMetadataToAPI(metadata, idCidPairs, "NFT")
+        await sendMetadataToAPI(metadata, idCidPairs, "NFT", "LSP8")
     } catch (err) {
-      console.log("Couldn't send metadata to backend API", err)
+        console.log("Couldn't send metadata to backend API", err)
     }
 
     /****************** Process only the first 5 ID and CID pairs for testing purposes ******************/ 
@@ -424,7 +445,7 @@ async function tryDownloadImage(url, savePath) {
 ******************************/
 
 // Send indexed token metadata to backend
-async function sendMetadataToAPI(metadata, idCidPairs, type) {
+async function sendMetadataToAPI(metadata, idCidPairs, type, standard) {
   console.log(`📡 Sending metadata and ID-CID pairs to the backend API...`);
 
   const apiEndpoint = process.env.DATABASE_API_ENDPOINT;
@@ -432,20 +453,23 @@ async function sendMetadataToAPI(metadata, idCidPairs, type) {
   const payload = {
       metadata,
       idCidPairs,
-      type
+      type,
+      standard
   };
 
   try {
+    console.log("Payload", payload)
     await axios.post(apiEndpoint, payload, {
       headers: {
           'Content-Type': 'application/json',
           'x-api-key': apiKey
       }
     });
+    
 
     console.log('🎉 Metadata and ID-CID pairs sent to API successfully');
   } catch (error) {
-      console.error('Failed to send metadata to API:', error);
+      console.error('Failed to send metadata to API for following asset', payload.metadata, error);
   }
 }
 
@@ -469,30 +493,36 @@ async function processAllDirectories() {
 }
 
 async function processDirectory(directoryPath) {
-  const contractDirectories = fs.readdirSync(directoryPath);
+  const entries = fs.readdirSync(directoryPath);
 
-  for (const contractDir of contractDirectories) {
-      const contractPath = path.join(directoryPath, contractDir);
-      const nftsDirectoryPath = path.join(contractPath, 'nfts');
-      let idCidPairs = "";
+  for (const entry of entries) {
+      const entryPath = path.join(directoryPath, entry);
+      const stats = fs.statSync(entryPath);
 
-      // Check if the nfts directory exists and load idCidPairs if it does
-      if (fs.existsSync(nftsDirectoryPath)) {
-          const idCidPairsPath = path.join(nftsDirectoryPath, 'id-cid.txt');
-          if (fs.existsSync(idCidPairsPath)) {
-              idCidPairs = fs.readFileSync(idCidPairsPath, 'utf8');
+      if (stats.isDirectory()) {
+          const nftsDirectoryPath = path.join(entryPath, 'nfts');
+          let idCidPairs = [];
+
+          // Check if the nfts directory exists and load idCidPairs if it does
+          if (fs.existsSync(nftsDirectoryPath)) {
+              const idCidPairsPath = path.join(nftsDirectoryPath, 'id-cid.json');
+              if (fs.existsSync(idCidPairsPath)) {
+                  const idCidPairsRaw = fs.readFileSync(idCidPairsPath, 'utf8');
+                  idCidPairs = JSON.parse(idCidPairsRaw); // Parse the JSON string back to an array
+              }
           }
-      }
 
-      // Read JSON metadata files in each contract directory
-      const files = fs.readdirSync(contractPath);
-      for (const file of files) {
-          if (file.endsWith('.json')) {  // Ensure processing only JSON files
-              const fullPath = path.join(contractPath, file);
-              const metadata = readJsonFile(fullPath);
-              if (metadata) {
-                  const tokenType = directoryPath.includes('Divisible') ? 'TOKEN' : 'NFT';
-                  await sendMetadataToAPI(metadata, idCidPairs, tokenType);
+          // Read JSON metadata files in each contract directory
+          const files = fs.readdirSync(entryPath);
+          for (const file of files) {
+              if (file.endsWith('.json')) {  // Ensure processing only JSON files
+                  const fullPath = path.join(entryPath, file);
+                  const metadata = readJsonFile(fullPath);
+                  if (metadata) {
+                      const tokenType = directoryPath.includes('NonDivisible') ? 'NFT' : 'TOKEN';
+                      const tokenStandard = directoryPath.includes('LSP7') ? "LSP7" : "LSP8"
+                      await sendMetadataToAPI(metadata, idCidPairs, tokenType, tokenStandard);
+                  }
               }
           }
       }
@@ -515,8 +545,8 @@ function readJsonFile(filePath) {
 ******************************/
 
 // Upage & BurntPix NFTs were deployed via EOA
-// Indexer currently doesn't support EOA deployments
-const manualContractAddresses = ['0x39456Bcd4D450E55f851F97c30dF828A4e1f6C66', '0x3983151E0442906000DAb83c8b1cF3f2D2535F82'];
+// Indexer currently doesn't support EOA deployments,
+const manualContractAddresses = ["0x39456Bcd4D450E55f851F97c30dF828A4e1f6C66", "0x3983151E0442906000DAb83c8b1cF3f2D2535F82"];
 
 async function processContractsManually(contractAddresses) {
   console.log(`🔎 Starting to process manually provided contract addresses...`);
