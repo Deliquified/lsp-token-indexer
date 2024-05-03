@@ -75,7 +75,7 @@ For the database - we use our own API solution to store the data in our database
 
 ```
 // Send indexed token metadata to backend
-async function sendMetadataToAPI(metadata, idCidPairs, type) {
+async function sendMetadataToAPI(metadata, idCidPairs, type, standard) {
   console.log(`📡 Sending metadata and ID-CID pairs to the backend API...`);
 
   const apiEndpoint = process.env.DATABASE_API_ENDPOINT;
@@ -83,20 +83,23 @@ async function sendMetadataToAPI(metadata, idCidPairs, type) {
   const payload = {
       metadata,
       idCidPairs,
-      type
+      type,
+      standard
   };
 
   try {
+    console.log("Payload", payload)
     await axios.post(apiEndpoint, payload, {
       headers: {
           'Content-Type': 'application/json',
           'x-api-key': apiKey
       }
     });
+    
 
     console.log('🎉 Metadata and ID-CID pairs sent to API successfully');
   } catch (error) {
-      console.error('Failed to send metadata to API:', error);
+      console.error('Failed to send metadata to API for following asset', payload.metadata, error);
   }
 }
 ```
@@ -109,7 +112,7 @@ node index.js
 ```
  <br />
 This will start the process of indexing from block 0 to the latest block. The indexer will continuously listen for new blocks and index all the deployed LSP tokens. <br />
-
+<br />
 Currently indexer doesn't support EOA contract deployment i.e. contracts deployed through EOA are not tracked & indexed. As a temporary work around we've added manual indexing via *processContractsManually()* function. We've added *BurntPix* and *Universal Page Name* contracts as default since they're both deployed via EOA.
 
 ## Technical Deep Dive
@@ -146,7 +149,7 @@ Envio's Hypersync returns all the transactions with the above topics in batches 
    
    Since there can be LSP7 NFT and LSP8 NFT, we need to differentiate the two. For this, we check the appropriate metadata fields (tokenType, token, LSP4Standard...) to determine the standard (LSP7 or LSP8) and token type (token or NFT)
 4. If it is LSP7 token or NFT, we create a folder under "./LSP7Divisible" || "./LSP7NonDivisible" with contract address as name and save the metadata as a json file. If it is an LSP8 NFT, then we also want to get token ID > CID mapping as well.
-5. In case of LSP8, we query Pinata with CID hash of the directory that holds references to all the token IDs with their CID hashes and extract them to a .json file. End result looks something like this: <br />
+5. In case of LSP8, we query Pinata with CID hash of the directory that holds references to all the token IDs with their CID hashes, extract and save it to a .json file. End result looks something like this (array of objects): <br />
 
 ```
 [{"id":1,"cid":"bafkreicpm5eeu6egsvnd3q3dl5m5nne25opnhuthjvna3r5aomcqsgwkky"},
