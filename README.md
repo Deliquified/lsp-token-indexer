@@ -146,14 +146,14 @@ Envio's Hypersync returns all the transactions with the above topics in batches 
    
    Since there can be LSP7 NFT and LSP8 NFT, we need to differentiate the two. For this, we check the appropriate metadata fields (tokenType, token, LSP4Standard...) to determine the standard (LSP7 or LSP8) and token type (token or NFT)
 4. If it is LSP7 token or NFT, we create a folder under "./LSP7Divisible" || "./LSP7NonDivisible" with contract address as name and save the metadata as a json file. If it is an LSP8 NFT, then we also want to get token ID > CID mapping as well.
-5. In case of LSP8, we query Pinata with CID hash of the directory that holds references to all the token IDs with their CID hashes and extract them to a simple .txt file. End result looks something like this: <br />
+5. In case of LSP8, we query Pinata with CID hash of the directory that holds references to all the token IDs with their CID hashes and extract them to a .json file. End result looks something like this: <br />
 
 ```
-ID: 1, CID: bafkreib4rh2ij5rbf5ahkq7w3zkttdxd6yx5lqguqukhvroimle5z7qd54
-ID: 2, CID: bafkreihamkxx66tgurar4bm57dvangwzupqkyn5w2w7akrt2ujmzupyqlq
-ID: 3, CID: bafkreicrwvsov3jr25yalnaxehqi42pkgirijxw7gq2xjsci4xtft4mkyu
-ID: 4, CID: bafkreiaupsxgp3nwskdiieekuga67pfmzmg7kb3ctkpduyt3vkxf6f4fhu
-ID: 5, CID: bafkreihzxzrvte5vcsviigp4lr4hl3huiy375qyfyo3umeebnzuaslacsq
+[{"id":1,"cid":"bafkreicpm5eeu6egsvnd3q3dl5m5nne25opnhuthjvna3r5aomcqsgwkky"},
+{"id":2,"cid":"bafkreievz477n6435xm7bwc5rgh6jo22ifg2dbbumfxuto4tbt4brypa7u"},
+{"id":3,"cid":"bafkreicsvapifvepqfquk5c2w3ipo4obcvsxby2zaui7j6oxv4eob5ubc4"},
+{"id":4,"cid":"bafkreighnerq42bel37isymal7npzwak7gqilkuahxpdof5jza336rtu4y"},
+{"id":5,"cid":"bafkreiea7nxo5avgshdhlqqkycvexhtrlp5upfbyn7wxbentmm6co2ox4u"}]
 ...
 ```
 
